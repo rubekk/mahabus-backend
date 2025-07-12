@@ -1,0 +1,186 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  OPERATOR
+  CUSTOMER
+}
+
+enum TripStatus {
+  SCHEDULED
+  CANCELLED
+  COMPLETED
+  IN_PROGRESS
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+enum PaymentMethod {
+  ESEWA
+  KHALTI
+  CASH
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  name      String
+  phone     String   @unique
+  role      UserRole @default(CUSTOMER)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relationships
+  operatorProfile OperatorProfile?
+  bookings        Booking[]
+  payments        Payment[]
+
+  @@map("users")
+}
+
+model OperatorProfile {
+  id          String  @id @default(cuid())
+  userId      String  @unique
+  companyName String
+  licenseNo   String  @unique
+  address     String
+  isVerified  Boolean @default(false)
+
+  // Relationships
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  buses  Bus[]
+  trips  Trip[]
+
+  @@map("operator_profiles")
+}
+
+model Route {
+  id          String @id @default(cuid())
+  origin      String
+  destination String
+  distance    Float  // in kilometers
+  duration    Int    // in minutes
+  isActive    Boolean @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relationships
+  trips Trip[]
+
+  @@map("routes")
+}
+
+model Bus {
+  id            String   @id @default(cuid())
+  operatorId    String
+  busNumber     String   @unique
+  busType       String   // e.g., "AC", "Non-AC", "Deluxe"
+  totalSeats    Int
+  seatLayout    Json     // JSON structure for seat arrangement
+  facilities    String[] // e.g., ["WiFi", "Charging Point", "Entertainment"]
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relationships
+  operator OperatorProfile @relation(fields: [operatorId], references: [id], onDelete: Cascade)
+  trips    Trip[]
+
+  @@map("buses")
+}
+
+model Trip {
+  id            String     @id @default(cuid())
+  busId         String
+  routeId       String
+  operatorId    String
+  departureTime DateTime
+  arrivalTime   DateTime
+  price         Float
+  status        TripStatus @default(SCHEDULED)
+  availableSeats Int
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  // Relationships
+  bus      Bus             @relation(fields: [busId], references: [id], onDelete: Cascade)
+  route    Route           @relation(fields: [routeId], references: [id], onDelete: Cascade)
+  operator OperatorProfile @relation(fields: [operatorId], references: [id], onDelete: Cascade)
+  bookings Booking[]
+
+  @@map("trips")
+}
+
+model Booking {
+  id               String        @id @default(cuid())
+  userId           String
+  tripId           String
+  seatNumbers      String[]
+  totalAmount      Float
+  passengerDetails Json          // Array of passenger information
+  status           BookingStatus @default(PENDING)
+  bookingReference String        @unique @default(cuid())
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  // Relationships
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  trip     Trip      @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  payments Payment[]
+
+  @@map("bookings")
+}
+
+model Payment {
+  id                String        @id @default(cuid())
+  bookingId         String
+  userId            String
+  amount            Float
+  method            PaymentMethod
+  status            PaymentStatus @default(PENDING)
+  transactionId     String?       @unique
+  paymentReference  String        @unique @default(cuid())
+  gatewayResponse   Json?         // Store gateway response
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  // Relationships
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("payments")
+}
+
+model SeatReservation {
+  id         String   @id @default(cuid())
+  tripId     String
+  seatNumber String
+  bookingId  String?
+  isReserved Boolean  @default(false)
+  reservedAt DateTime?
+  expiresAt  DateTime?
+
+  @@unique([tripId, seatNumber])
+  @@map("seat_reservations")
+}
