@@ -60,4 +60,19 @@ export class AuthController {
             next(error);
         }
     }
+
+
+    async myProfile(req: Request, res: Response, next: NextFunction) {
+        try {
+            const user = req.user;
+            console.log("request user: ", user)
+            console.log(req)
+
+            res.json(
+                successResponse('Profile retrieved successfully', { user })
+            );
+        } catch (error) {
+            next(error);
+        }
+    }
 }

@@ -3,6 +3,7 @@ import { hashPassword, comparePassword, generateToken } from '@/utils/auth';
 import { UnauthorizedError, ConflictError } from '@/utils/errors';
 import { RegisterRequest, LoginRequest } from '@/types';
 import { UserRole } from '@prisma/client';
+import config from '@/config';
 
 export class AuthService {
   async register(data: RegisterRequest) {
@@ -45,6 +46,18 @@ export class AuthService {
       },
     });
 
+    if (role === 'OPERATOR') {
+      await prisma.operatorProfile.create({
+        data: {
+          userId: user.id,
+          companyName: '',
+          licenseNo: '',
+          address: '',
+          isVerified: true,
+        },
+      });
+    }
+
     // Generate token
     const token = generateToken({
       id: user.id,
@@ -60,6 +73,30 @@ export class AuthService {
 
   async login(data: LoginRequest) {
     const { email, password } = data;
+
+    if (email === config.admin.email && password === config.admin.password) {
+      // Admin login
+      const adminUser = {
+        id: 'admin',
+        email: config.admin.email,
+        name: 'Admin',
+        phone: '',
+        role: 'ADMIN' as UserRole,
+        isActive: true,
+        createdAt: new Date(),
+      };
+
+      const token = generateToken({
+        id: adminUser.id,
+        email: adminUser.email,
+        role: adminUser.role,
+      });
+
+      return {
+        user: adminUser,
+        token,
+      };
+    }
 
     // Find user
     const user = await prisma.user.findUnique({

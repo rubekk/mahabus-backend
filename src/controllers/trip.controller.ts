@@ -9,7 +9,7 @@ export class TripController {
     try {
       const { page, limit, origin, destination, date, minPrice, maxPrice, busType } = req.query;
       const operatorId = req.user?.role === 'OPERATOR' ? req.user.id : undefined;
-      
+
       const filters = {
         origin: origin as string,
         destination: destination as string,
@@ -18,14 +18,14 @@ export class TripController {
         maxPrice: maxPrice ? parseFloat(maxPrice as string) : undefined,
         busType: busType as string,
       };
-      
+
       const result = await tripService.getAllTrips(
         page as string,
         limit as string,
         filters,
         operatorId
       );
-      
+
       res.json(
         successResponse('Trips retrieved successfully', result.trips, result.pagination)
       );
@@ -37,9 +37,9 @@ export class TripController {
   async getTripById(req: Request, res: Response, next: NextFunction) {
     try {
       const { id } = req.params;
-      
+
       const trip = await tripService.getTripById(id);
-      
+
       res.json(
         successResponse('Trip retrieved successfully', trip)
       );
@@ -50,17 +50,15 @@ export class TripController {
 
   async createTrip(req: Request, res: Response, next: NextFunction) {
     try {
-      const { operatorId } = req.body;
       const requesterId = req.user?.id;
       const requesterRole = req.user?.role;
-      
+
       const trip = await tripService.createTrip(
         req.body,
-        operatorId,
         requesterId,
         requesterRole
       );
-      
+
       res.status(201).json(
         successResponse('Trip created successfully', trip)
       );
@@ -74,9 +72,9 @@ export class TripController {
       const { id } = req.params;
       const requesterId = req.user?.id;
       const requesterRole = req.user?.role;
-      
+
       const trip = await tripService.updateTrip(id, req.body, requesterId, requesterRole);
-      
+
       res.json(
         successResponse('Trip updated successfully', trip)
       );
@@ -90,9 +88,9 @@ export class TripController {
       const { id } = req.params;
       const requesterId = req.user?.id;
       const requesterRole = req.user?.role;
-      
+
       const result = await tripService.deleteTrip(id, requesterId, requesterRole);
-      
+
       res.json(
         successResponse('Trip deleted successfully', result)
       );
@@ -104,9 +102,9 @@ export class TripController {
   async getAvailableSeats(req: Request, res: Response, next: NextFunction) {
     try {
       const { id } = req.params;
-      
+
       const result = await tripService.getAvailableSeats(id);
-      
+
       res.json(
         successResponse('Available seats retrieved successfully', result)
       );

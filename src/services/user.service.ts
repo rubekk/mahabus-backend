@@ -8,7 +8,6 @@ export class UserService {
     page?: string,
     limit?: string,
     role?: UserRole,
-    requesterId?: string
   ) {
     const { page: pageNum, limit: limitNum } = validatePagination(page, limit);
     

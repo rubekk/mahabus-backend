@@ -12,9 +12,9 @@ export class TripService {
     operatorId?: string
   ) {
     const { page: pageNum, limit: limitNum } = validatePagination(page, limit);
-    
+
     const where: any = {};
-    
+
     if (operatorId) {
       where.operatorId = operatorId;
     }
@@ -42,7 +42,7 @@ export class TripService {
       const date = new Date(filters.date);
       const nextDay = new Date(date);
       nextDay.setDate(date.getDate() + 1);
-      
+
       where.departureTime = {
         gte: date,
         lt: nextDay,
@@ -186,7 +186,6 @@ export class TripService {
 
   async createTrip(
     data: CreateTripRequest,
-    operatorId: string,
     requesterId?: string,
     requesterRole?: UserRole
   ) {
@@ -194,7 +193,7 @@ export class TripService {
 
     // Verify operator exists
     const operator = await prisma.operatorProfile.findUnique({
-      where: { id: operatorId },
+      where: { userId: requesterId },
     });
 
     if (!operator) {
@@ -203,10 +202,10 @@ export class TripService {
 
     // Check permissions
     if (requesterId && requesterRole) {
-      const canCreate = 
-        requesterRole === 'ADMIN' || 
+      const canCreate =
+        requesterRole === 'ADMIN' ||
         (requesterRole === 'OPERATOR' && operator.userId === requesterId);
-      
+
       if (!canCreate) {
         throw new ForbiddenError('Access denied');
       }
@@ -221,7 +220,7 @@ export class TripService {
       throw new NotFoundError('Bus not found');
     }
 
-    if (bus.operatorId !== operatorId) {
+    if (bus.operatorId !== operator.id) {
       throw new ForbiddenError('Bus does not belong to this operator');
     }
 
@@ -237,7 +236,7 @@ export class TripService {
     // Validate times
     const departure = new Date(departureTime);
     const arrival = new Date(arrivalTime);
-    
+
     if (departure >= arrival) {
       throw new BadRequestError('Departure time must be before arrival time');
     }
@@ -346,10 +345,10 @@ export class TripService {
 
     // Check permissions
     if (requesterId && requesterRole) {
-      const canUpdate = 
-        requesterRole === 'ADMIN' || 
+      const canUpdate =
+        requesterRole === 'ADMIN' ||
         (requesterRole === 'OPERATOR' && trip.operator.userId === requesterId);
-      
+
       if (!canUpdate) {
         throw new ForbiddenError('Access denied');
       }
@@ -359,7 +358,7 @@ export class TripService {
     if (trip.bookings.length > 0) {
       const allowedUpdates = ['status'];
       const hasOtherUpdates = Object.keys(updateData).some(key => !allowedUpdates.includes(key));
-      
+
       if (hasOtherUpdates) {
         throw new BadRequestError('Cannot update trip details when there are active bookings');
       }
@@ -367,13 +366,13 @@ export class TripService {
 
     // Validate times if being updated
     if (updateData.departureTime || updateData.arrivalTime) {
-      const departure = updateData.departureTime 
-        ? new Date(updateData.departureTime) 
+      const departure = updateData.departureTime
+        ? new Date(updateData.departureTime)
         : trip.departureTime;
-      const arrival = updateData.arrivalTime 
-        ? new Date(updateData.arrivalTime) 
+      const arrival = updateData.arrivalTime
+        ? new Date(updateData.arrivalTime)
         : trip.arrivalTime;
-      
+
       if (departure >= arrival) {
         throw new BadRequestError('Departure time must be before arrival time');
       }
@@ -381,7 +380,7 @@ export class TripService {
 
     // Filter out fields that shouldn't be updated and prepare data for Prisma
     const { busId, routeId, ...filteredUpdateData } = updateData;
-    
+
     // Convert string dates to Date objects for Prisma
     const prismaUpdateData: any = {};
     if (filteredUpdateData.departureTime) {
@@ -453,10 +452,10 @@ export class TripService {
 
     // Check permissions
     if (requesterId && requesterRole) {
-      const canDelete = 
-        requesterRole === 'ADMIN' || 
+      const canDelete =
+        requesterRole === 'ADMIN' ||
         (requesterRole === 'OPERATOR' && trip.operator.userId === requesterId);
-      
+
       if (!canDelete) {
         throw new ForbiddenError('Access denied');
       }

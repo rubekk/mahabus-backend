@@ -15,7 +15,7 @@ interface Config {
     maxRequests: number;
   };
   cors: {
-    origin: string;
+    origins: string[];
   };
   esewa: {
     merchantId: string;
@@ -44,11 +44,15 @@ const config: Config = {
     expiresIn: process.env.JWT_EXPIRES_IN || '24h',
   },
   rateLimit: {
-    windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000', 10),
-    maxRequests: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '100', 10),
+    windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '9000000', 10),
+    maxRequests: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '1000', 100),
   },
   cors: {
-    origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+    // origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+    origins: [
+      "http://localhost:8080",
+      "http://localhost:8081",
+    ]
   },
   esewa: {
     merchantId: process.env.ESEWA_MERCHANT_ID || '',
