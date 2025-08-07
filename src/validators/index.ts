@@ -1,11 +1,16 @@
 import Joi from 'joi';
 
 // User validation schemas
+export const otpSchema = Joi.object({
+  email: Joi.string().email().required(),
+});
+
 export const registerSchema = Joi.object({
   email: Joi.string().email().required(),
   password: Joi.string().min(6).required(),
   name: Joi.string().min(2).max(50).required(),
   phone: Joi.string().pattern(/^[0-9]{10}$/).required(),
+  otp: Joi.string().length(6).optional(), 
   role: Joi.string().valid('ADMIN', 'OPERATOR', 'CUSTOMER').optional(),
 });
 
@@ -117,6 +122,7 @@ export const tripFilterSchema = Joi.object({
   minPrice: Joi.number().positive().optional(),
   maxPrice: Joi.number().positive().optional(),
   busType: Joi.string().optional(),
+  useContentBased: Joi.boolean().optional(),
 }).concat(paginationSchema);
 
 export const bookingFilterSchema = Joi.object({

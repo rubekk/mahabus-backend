@@ -16,6 +16,9 @@ router.get('/khalti/failure/:reference', paymentController.khaltiFailure);
 // Protected routes
 router.use(authenticate);
 
+// Get all payments (admin and operator roles)
+router.get('/', authorize('ADMIN', 'OPERATOR'), validateQuery(paginationSchema), paymentController.getAllPayments);
+
 // Initiate payment (customers only)
 router.post('/initiate', authorize('CUSTOMER'), validate(createPaymentSchema), paymentController.initiatePayment);
 

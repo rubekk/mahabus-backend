@@ -19,6 +19,10 @@ export const verifyToken = (token: string): JwtPayload => {
   return jwt.verify(token, config.jwt.secret) as JwtPayload;
 };
 
+export const generateOTP = (): string => {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+}
+
 export const hashPassword = async (password: string): Promise<string> => {
   const saltRounds = 10;
   return await bcrypt.hash(password, saltRounds);

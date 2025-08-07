@@ -1,7 +1,7 @@
 import prisma from '@/config/database';
 import { NotFoundError, ConflictError, ForbiddenError, BadRequestError } from '@/utils/errors';
 import { validatePagination, paginationHelper } from '@/utils/response';
-import { CreateBookingRequest, BookingDetails } from '@/types';
+import { CreateBookingRequest } from '@/types';
 import { generateBookingReference } from '@/utils/auth';
 import { UserRole } from '@prisma/client';
 

@@ -118,6 +118,7 @@ model Trip {
   departureTime DateTime
   arrivalTime   DateTime
   price         Float
+  originalPrice Float?     // Store original price for dynamic pricing
   status        TripStatus @default(SCHEDULED)
   availableSeats Int
   createdAt     DateTime   @default(now())
@@ -183,4 +184,16 @@ model SeatReservation {
 
   @@unique([tripId, seatNumber])
   @@map("seat_reservations")
+}
+
+model Otp {
+  id        String   @id @default(cuid())
+  email     String
+  otpCode   String
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+  attempts  Int      @default(0)
+
+  @@map("otps")
 }

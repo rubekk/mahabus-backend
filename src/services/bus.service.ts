@@ -112,7 +112,7 @@ export class BusService {
 
     // Verify operator exists
     const operator = await prisma.operatorProfile.findUnique({
-      where: { id: operatorId },
+      where: { userId: requesterId },
     });
 
     if (!operator) {
@@ -141,7 +141,7 @@ export class BusService {
 
     const bus = await prisma.bus.create({
       data: {
-        operatorId,
+        operatorId: operator.id,
         busNumber,
         busType,
         totalSeats,

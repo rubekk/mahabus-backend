@@ -3,20 +3,33 @@ import { NotFoundError, ConflictError, ForbiddenError, BadRequestError } from '@
 import { validatePagination, paginationHelper } from '@/utils/response';
 import { CreateTripRequest, TripFilters } from '@/types';
 import { UserRole } from '@prisma/client';
+import { contentBasedRecommendation } from '@/algorithms/contentBased';
+import { occupancySorting, OccupancyConfig } from '@/algorithms/occupancy';
 
 export class TripService {
   async getAllTrips(
     page?: string,
     limit?: string,
     filters?: TripFilters,
-    operatorId?: string
+    operatorUserId?: string
   ) {
     const { page: pageNum, limit: limitNum } = validatePagination(page, limit);
 
     const where: any = {};
 
-    if (operatorId) {
-      where.operatorId = operatorId;
+    if (operatorUserId) {
+      const operator = await prisma.operatorProfile.findUnique({
+        where: { userId: operatorUserId },
+        select: { id: true },
+      })
+
+      if (!operator) {
+        throw new NotFoundError('Operator not found');
+      }
+
+      where.operatorId = operator.id;
+
+      console.log('Operator ID for filtering:', operator.id);
     }
 
     if (filters?.origin) {
@@ -112,8 +125,86 @@ export class TripService {
       },
     });
 
+    // Apply content-based algorithm if requested
+    let processedTrips = trips;
+    if (filters?.useContentBased && filters?.userId) {
+      try {
+        // Get user's historical bookings for preference generation
+        const userBookings = await prisma.booking.findMany({
+          where: {
+            userId: filters.userId,
+            status: 'CONFIRMED',
+          },
+          include: {
+            trip: {
+              include: {
+                bus: {
+                  select: {
+                    busType: true,
+                  },
+                },
+                route: {
+                  select: {
+                    origin: true,
+                    destination: true,
+                  },
+                },
+              },
+            },
+          },
+          take: 20, // Last 20 bookings for preference analysis
+          orderBy: {
+            createdAt: 'desc',
+          },
+        });
+
+        // Generate user preferences from historical data
+        const userPreferences = contentBasedRecommendation.generateUserPreferences(
+          filters.userId,
+          userBookings
+        );
+
+        // Get content-based recommendations
+        const recommendedTrips = contentBasedRecommendation.getRecommendedTrips(
+          trips,
+          userPreferences,
+          filters,
+          limitNum * 2 // Get more trips for occupancy filtering
+        );
+
+        // Apply diversity to prevent over-specialization
+        processedTrips = contentBasedRecommendation.applyDiversity(recommendedTrips, 0.3);
+      } catch (error) {
+        // If content-based algorithm fails, fallback to regular sorting
+        console.error('Content-based algorithm error:', error);
+        processedTrips = trips;
+      }
+    }
+
+    // Apply occupancy-based sorting to improve bus utilization
+    const occupancyConfig: Partial<OccupancyConfig> = {
+      minOccupancyThreshold: filters?.minOccupancyThreshold || 0, // Use custom threshold or default to 0%
+      occupancyBoostFactor: 1.3, // Moderate boost for high occupancy
+      lowOccupancyPenalty: 0.7,  // Light penalty for low occupancy
+      balanceWithContentScore: filters?.useContentBased || false // Balance with content-based scores only if content-based is used
+    };
+
+    // Apply occupancy sorting if prioritizeOccupancy is true, or apply smart filtering
+    let finalTrips;
+    if (filters?.prioritizeOccupancy) {
+      // Pure occupancy-based sorting
+      finalTrips = occupancySorting.sortByOccupancy(processedTrips, occupancyConfig).slice(0, limitNum);
+    } else {
+      // Smart occupancy filtering that promotes higher occupancy while maintaining variety
+      finalTrips = occupancySorting.smartOccupancyFilter(
+        processedTrips,
+        limitNum,
+        occupancyConfig
+      );
+    }
+
     return {
-      trips,
+      trips: finalTrips,
       pagination,
     };
   }
@@ -281,7 +372,7 @@ export class TripService {
       data: {
         busId,
         routeId,
-        operatorId,
+        operatorId: operator.id,
         departureTime: departure,
         arrivalTime: arrival,
         price,
@@ -342,6 +433,11 @@ export class TripService {
     if (!trip) {
       throw new NotFoundError('Trip not found');
     }
+
+    console.log("Trip service updateTrip called");
+    console.log('Trip operator id: ', trip.operator.id);
+    console.log('Trip operator user id: ', trip.operator.userId);
+    console.log('Requestor id and requestor role: ', requesterId, requesterRole);
 
     // Check permissions
     if (requesterId && requesterRole) {

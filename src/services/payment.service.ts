@@ -130,9 +130,34 @@ export class PaymentService {
   }
 
   private async generateKhaltiUrl(payment: any, booking: any): Promise<string> {
-    // In real implementation, you would make an API call to Khalti to get the payment URL
-    // For now, returning a placeholder URL
-    return `https://khalti.com/payment/verify/?token=${payment.paymentReference}`;
+    const response = await fetch('https://dev.khalti.com/api/v2/epayment/initiate/', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Key ${config.khalti.secretKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        return_url: config.khalti.successUrl,
+        website_url: config.website.url,
+        amount: payment.amount * 100, // paisa
+        purchase_order_id: payment.paymentReference,
+        purchase_order_name: 'Trip Booking',
+        customer_info: {
+          name: booking.userName || 'N/A',
+          email: booking.userEmail || 'noemail@example.com',
+          phone: booking.userPhone || '9800000000',
+        },
+      }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      console.error('Khalti payment initiation failed:', data);
+      throw new Error('Failed to initiate payment with Khalti');
+    }
+
+    return (data as { payment_url: string })?.payment_url;
   }
 
   async verifyEsewaPayment(paymentReference: string, oid: string, refId: string) {
@@ -182,6 +207,7 @@ export class PaymentService {
         },
       },
     });
+
 
     if (!payment) {
       throw new NotFoundError('Payment not found');
@@ -335,10 +361,10 @@ export class PaymentService {
 
     // Check permissions
     if (userId && userRole) {
-      const canView = 
-        userRole === 'ADMIN' || 
+      const canView =
+        userRole === 'ADMIN' ||
         payment.userId === userId;
-      
+
       if (!canView) {
         throw new ForbiddenError('Access denied');
       }
@@ -349,7 +375,7 @@ export class PaymentService {
 
   async getUserPayments(userId: string, page?: string, limit?: string) {
     const { page: pageNum, limit: limitNum } = validatePagination(page, limit);
-    
+
     const where = { userId };
     const total = await prisma.payment.count({ where });
     const { skip, take, pagination } = paginationHelper(pageNum, limitNum, total);
@@ -397,6 +423,87 @@ export class PaymentService {
     };
   }
 
+  async getAllPayments(userRole: UserRole, userId: string | undefined, page?: string, limit?: string) {
+    const { page: pageNum, limit: limitNum } = validatePagination(page, limit);
+
+    const where: any = {};
+
+    if (userRole && !userId) {
+      throw new ForbiddenError('Access denied');
+    }
+
+    if (userRole === 'OPERATOR') {
+      const operator = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { id: true, role: true },
+      });
+
+      if (!operator || operator.role !== 'OPERATOR') {
+        throw new ForbiddenError('Access denied');
+      }
+
+      where.booking = {
+        trip: {
+          operatorId: operator.id,
+        },
+      };
+    } else if (userRole !== 'ADMIN') {
+      throw new ForbiddenError('Access denied');
+    }
+
+    const total = await prisma.payment.count({ where });
+    const { skip, take, pagination } = paginationHelper(pageNum, limitNum, total);
+
+    const payments = await prisma.payment.findMany({
+      where,
+      skip,
+      take,
+      include: {
+        booking: {
+          select: {
+            id: true,
+            bookingReference: true,
+            seatNumbers: true,
+            totalAmount: true,
+            trip: {
+              select: {
+                id: true,
+                departureTime: true,
+                bus: {
+                  select: {
+                    busNumber: true,
+                    busType: true,
+                  },
+                },
+                route: {
+                  select: {
+                    origin: true,
+                    destination: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    return {
+      payments,
+      pagination,
+    };
+  }
+
   async getPaymentStatistics(userId?: string) {
     const where: any = {};
     if (userId) {
@@ -404,7 +511,7 @@ export class PaymentService {
     }
 
     const totalPayments = await prisma.payment.count({ where });
-    
+
     const statusCounts = await prisma.payment.groupBy({
       by: ['status'],
       where,

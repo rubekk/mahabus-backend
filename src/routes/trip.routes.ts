@@ -1,15 +1,15 @@
 import { Router } from 'express';
 import { TripController } from '@/controllers/trip.controller';
-import { authenticate, authorize } from '@/middleware/auth';
+import { authenticate, authorize, optionalAuth } from '@/middleware/auth';
 import { validate, validateQuery } from '@/middleware/validation';
 import { createTripSchema, updateTripSchema, tripFilterSchema } from '@/validators';
 
 const router = Router();
 const tripController = new TripController();
 
-// Public routes
-router.get('/', validateQuery(tripFilterSchema), tripController.getAllTrips);
-router.get('/:id', tripController.getTripById);
+// Public routes with optional auth (to get user ID for personalized results)
+router.get('/', optionalAuth, validateQuery(tripFilterSchema), tripController.getAllTrips);
+router.get('/:id', optionalAuth, tripController.getTripById);
 router.get('/:id/seats', tripController.getAvailableSeats);
 
 // Protected routes

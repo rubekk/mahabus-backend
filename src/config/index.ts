@@ -17,6 +17,9 @@ interface Config {
   cors: {
     origins: string[];
   };
+  website: {
+    url: string;
+  };
   esewa: {
     merchantId: string;
     secretKey: string;
@@ -30,6 +33,10 @@ interface Config {
     failureUrl: string;
   };
   admin: {
+    email: string;
+    password: string;
+  };
+  mail: {
     email: string;
     password: string;
   };
@@ -54,6 +61,9 @@ const config: Config = {
       "http://localhost:8081",
     ]
   },
+  website: {
+    url: process.env.WEBSITE_URL || 'http://localhost:3000',
+  },
   esewa: {
     merchantId: process.env.ESEWA_MERCHANT_ID || '',
     secretKey: process.env.ESEWA_SECRET_KEY || '',
@@ -70,6 +80,10 @@ const config: Config = {
     email: process.env.ADMIN_EMAIL || 'admin@busticketing.com',
     password: process.env.ADMIN_PASSWORD || 'admin123',
   },
+  mail: {
+    email: process.env.MAIL_EMAIL || '',
+    password: process.env.MAIL_PASSWORD || '',
+  }
 };
 
 export default config;

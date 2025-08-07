@@ -6,6 +6,7 @@ import rateLimit from 'express-rate-limit';
 import config from '@/config';
 import routes from '@/routes';
 import { errorHandler, notFoundHandler } from '@/middleware/error';
+import { pricingScheduler } from '@/services/pricing.scheduler';
 
 const app = express();
 
@@ -65,11 +66,21 @@ const server = app.listen(PORT, () => {
   console.log(`🚌 Bus Ticketing API is running on port ${PORT}`);
   console.log(`🌍 Environment: ${config.nodeEnv}`);
   console.log(`📊 Health check: http://localhost:${PORT}/api/health`);
+  
+  // Start dynamic pricing scheduler
+  if (config.nodeEnv !== 'test') {
+    console.log('💰 Starting dynamic pricing scheduler...');
+    pricingScheduler.start();
+  }
 });
 
 // Graceful shutdown
 process.on('SIGTERM', () => {
   console.log('🛑 SIGTERM received, shutting down gracefully');
+  
+  // Stop pricing scheduler
+  pricingScheduler.stop();
+  
   server.close(() => {
     console.log('💀 Process terminated');
   });
@@ -77,6 +88,10 @@ process.on('SIGTERM', () => {
 
 process.on('SIGINT', () => {
   console.log('🛑 SIGINT received, shutting down gracefully');
+  
+  // Stop pricing scheduler
+  pricingScheduler.stop();
+  
   server.close(() => {
     console.log('💀 Process terminated');
   });

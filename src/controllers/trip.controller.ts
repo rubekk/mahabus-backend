@@ -7,8 +7,20 @@ const tripService = new TripService();
 export class TripController {
   async getAllTrips(req: Request, res: Response, next: NextFunction) {
     try {
-      const { page, limit, origin, destination, date, minPrice, maxPrice, busType } = req.query;
-      const operatorId = req.user?.role === 'OPERATOR' ? req.user.id : undefined;
+      const {
+        page,
+        limit,
+        origin,
+        destination,
+        date,
+        minPrice,
+        maxPrice,
+        busType,
+        useContentBased,
+        prioritizeOccupancy,
+        minOccupancyThreshold
+      } = req.query;
+      const operatorUserId = req.user?.role === 'OPERATOR' ? req.user.id : undefined;
 
       const filters = {
         origin: origin as string,
@@ -17,17 +29,23 @@ export class TripController {
         minPrice: minPrice ? parseFloat(minPrice as string) : undefined,
         maxPrice: maxPrice ? parseFloat(maxPrice as string) : undefined,
         busType: busType as string,
+        useContentBased: useContentBased === 'true',
+        userId: req.user?.id,
+        prioritizeOccupancy: prioritizeOccupancy === 'true',
+        minOccupancyThreshold: minOccupancyThreshold ? parseFloat(minOccupancyThreshold as string) : undefined,
       };
 
       const result = await tripService.getAllTrips(
         page as string,
         limit as string,
         filters,
-        operatorId
+        operatorUserId
       );
 
       res.json(
-        successResponse('Trips retrieved successfully', result.trips, result.pagination)
+        successResponse('Trips retrieved successfully', {
+          trips: result.trips,
+        }, result.pagination)
       );
     } catch (error) {
       next(error);

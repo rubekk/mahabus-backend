@@ -5,12 +5,40 @@ import { successResponse } from '@/utils/response';
 const authService = new AuthService();
 
 export class AuthController {
+    async generateOTP(req: Request, res: Response, next: NextFunction): Promise<void> {
+        try {
+            const { email } = req.body;
+
+            if (!email) {
+                res.status(400).json(
+                    successResponse('Email is required', null)
+                );
+                return;
+            }
+
+            const otp = await authService.generateOTP(email);
+
+            res.json(
+                successResponse('OTP generated successfully', { otp })
+            );
+        } catch (error) {
+            next(error);
+        }
+    }
+
     async register(req: Request, res: Response, next: NextFunction) {
         try {
-            const result = await authService.register(req.body);
+            const isAdminCreating = req.user && req.user.role === 'ADMIN';
+
+            const result = await authService.register(req.body, isAdminCreating);
 
             res.status(201).json(
-                successResponse('User registered successfully', result)
+                successResponse(
+                    isAdminCreating 
+                        ? 'User created successfully by admin' 
+                        : 'User registered successfully', 
+                    result
+                )
             );
         } catch (error) {
             next(error);
@@ -29,19 +57,20 @@ export class AuthController {
         }
     }
 
-    async refreshToken(req: Request, res: Response, next: NextFunction) {
+    async refreshToken(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
             const userId = req.user?.id;
 
             if (!userId) {
-                return res.status(401).json(
+                res.status(401).json(
                     successResponse('User not authenticated', null)
                 );
+                return;
             }
 
             const result = await authService.refreshToken(userId);
 
-            return res.json(
+            res.json(
                 successResponse('Token refreshed successfully', result)
             );
         } catch (error) {

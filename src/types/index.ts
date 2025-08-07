@@ -46,6 +46,11 @@ export interface RegisterRequest {
   name: string;
   phone: string;
   role?: UserRole;
+  otp?: string;
+}
+
+export interface OtpRequest {
+  email: string;
 }
 
 export interface CreateRouteRequest {
@@ -94,6 +99,10 @@ export interface TripFilters {
   minPrice?: number;
   maxPrice?: number;
   busType?: string;
+  useContentBased?: boolean;
+  userId?: string;
+  prioritizeOccupancy?: boolean;
+  minOccupancyThreshold?: number;
 }
 
 export interface SeatLayout {
